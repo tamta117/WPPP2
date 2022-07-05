@@ -1,0 +1,47 @@
+---
+title: "Preliminary models"
+author: "Tam Ta"
+date: '2022-06-16'
+output: html_document
+---
+
+```{r library, include=FALSE}
+library(MuMIn)
+library(lme4)
+```
+
+```{r load data, include=FALSE}
+all_revised<-read.csv("data/cam_revised.csv")
+```
+
+```{r scale data}
+all_revised_scale <- scale(all_revised[c(14:16,18,20:22)])
+
+#add back any columns that we did not scale
+mod <- data.frame("Folder" = all_revised$Folder,
+                  "cam" = all_revised$cam,
+                  all_revised_scale)
+mod<-mod%>%
+  filter(Folder=="Reconyx")%>%
+  filter(nobs!=0)
+```
+
+```{r Total time}
+total_time<-lm(total.time ~ road_distance + building_density + 
+                  building_distance + trail_distance, 
+               data=mod, na.action = "na.fail")
+total_time<-lmer(total.time ~ road_distance + building_density + 
+                  building_distance + trail_distance + (1 | Folder) +
+                   (1 | elevation), data=mod, na.action = "na.fail")
+summary(total_time)
+dredge(total_time)
+```
+
+```{r Total time}
+feeding_time<-lm(nobs ~ road_distance + building_density + 
+                  building_distance + trail_distance, 
+               data=mod, na.action = "na.fail")
+summary(feeding_time)
+dredge(feeding_time)
+confint(feeding_time)
+```
