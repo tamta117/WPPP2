@@ -15,12 +15,12 @@ all_scale <- scale(all[10:17])
 all.mod <- data.frame("cam" = all$cam, "coug_id" = all$coug_id, "sex" = all$sex, "Folder" = all$Folder,
                       "carcass" = all$carcass, "study_area" = all$study_area,
                       "season" = all$season, "total.time" = all$total.time,
-                      "nobs" = all$nobs, all_scale)
+                      "nobs" = all$nobs, "CORA" = all$CORA, all_scale)
 #model
 test<-lmer(nobs ~ building_density + road_density + trail_density +
              forest_density + elevation + season + (1|coug_id), 
            data = all.mod)
-test<-lm(nobs ~ building_density + road_density + trail_density +
+test<-lm(CORA ~ building_density + road_density + trail_density +
              forest_density + elevation + season, 
            data = all.mod, na.action = "na.fail")
 test<-lm(total.time ~ building_density + road_density + trail_distance +

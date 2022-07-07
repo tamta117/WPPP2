@@ -38,3 +38,10 @@ all<-all%>%
   select(-total.time, -nobs)
 all<-left_join(all, all_coug, by=c("cam", "Folder"))
 write.csv(all,"data/all.csv")
+
+#run time bin for ravens
+cora <- lapply(file.list, sca_bin1)
+cora_merge<-left_join(cam, bind_rows(cora), by="cam")%>%
+  filter(!is.na(CORA))
+all<-left_join(all, cora_merge, by=c("cam", "Folder"))
+all[is.na(all)]<-0
