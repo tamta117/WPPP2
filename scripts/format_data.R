@@ -71,7 +71,7 @@ write.csv(all_revised, "data/cam_revised.csv")
 
 #bind road density data
 all_revised<-read.csv("data/cam_revised.csv")
-road_den<-read_excel("data/road_density.xlsx")%>%
+road_den<-read_excel("data/GIS/road_density.xlsx")%>%
   dplyr::select(cam, SHAPE_Length)%>%
   group_by(cam)%>%
   summarize(road_length=sum(SHAPE_Length))%>%
@@ -79,20 +79,29 @@ road_den<-read_excel("data/road_density.xlsx")%>%
   select(-road_length)
 all_revised<-left_join(all_revised, road_den, by="cam")
 
-#bind forest density data
-forest_den<-read_excel("data/forest_density.xlsx")%>%
-  mutate(forest_density=grid_code)%>%
-  select(cam, forest_density)
+#bind forest cover data
+forest_den<-read_excel("data/GIS/forest_cover.xlsx")%>%
+  mutate(forest_density=RASTERVALU)%>%
+  select(cam, forest_density)%>%
+  distinct(cam, .keep_all = TRUE)
 all_revised<-left_join(all_revised, forest_den, by="cam")
+
+#bind trail density data
+trail_den<-read_excel("data/GIS/trail_density.xlsx")%>%
+  group_by(cam)%>%
+  summarize(trail_density = sum(Shape_Length))%>%
+  select(cam, trail_density)
+all_revised<-left_join(all_revised, trail_den, by="cam")
 
 #final revision
 all<-all_revised%>%
   select(cam, Folder, carcass, study_area, season, elevation, building_density,
-         building_distance, road_density, road_distance, trail_distance,
-         forest_density, total.time, nobs)%>%
+         building_distance, road_density, road_distance, trail_density, 
+         trail_distance, forest_density, total.time, nobs)%>%
   separate(cam,
-           into=c("del1", "sex", "del2"),
+           into=c("id", "sex", "del2"),
            sep=c(6,7), remove=FALSE)%>%
-  select(-del1, -del2)
+  unite("coug_id", id:sex, remove=FALSE, sep="")%>%
+  select(-id, -del2)
 all[is.na(all)]<-0
 write.csv(all, "data/all.csv")
