@@ -3,9 +3,8 @@
 coug_bin0<-function(fname){
   cam<-read.csv(fname)%>%
     mutate(cam=ClusterID,
-           total.time=0,
            nobs=0)%>%
-    select(cam, Folder, total.time, nobs)
+    select(cam, nobs)
   cam2<-cam[1,]
 }
 

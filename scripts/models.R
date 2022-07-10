@@ -29,6 +29,8 @@ test<-lm(total.time ~ building_density + road_density + trail_distance +
 summary(test)
 dredge(test)
 
+all<-all%>%
+  filter(Folder=="Reconyx")
 #histograms of predictors
 p1<-ggplot(all, aes(x=building_density))+
   geom_histogram()
