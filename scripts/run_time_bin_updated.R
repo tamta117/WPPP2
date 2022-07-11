@@ -11,6 +11,7 @@ file.list <- dir(path="data/cam", pattern = "\\.csv$")
 timebin<-function(filename){
 test<-read.csv(filename)%>%
   mutate(across(everything(), as.character))
+test = test[-1,]
 test<-test%>%
   unite("date_time", Date:Time, remove=FALSE, sep=" ")
 test$date_time2<-parse_date_time(test$date_time, orders = c('ymd HMS','dmy HMS'))

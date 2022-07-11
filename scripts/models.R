@@ -5,32 +5,31 @@ library(lme4)
 library(tidyverse)
 library(ggplot2)
 library(patchwork)
-library(MuMIn)
+library(glmmTMB)
 
 #load data
-all<-read.csv("data/all.csv")
+all<-read.csv("data/all_updated.csv")
 
 #scale
-all_scale <- scale(all[10:17])
-all.mod <- data.frame("cam" = all$cam, "coug_id" = all$coug_id, "sex" = all$sex, "Folder" = all$Folder,
+all_scale <- scale(all[11:18])
+all.mod <- data.frame("cam" = all$cam, "coug_id" = all$coug_id, "sex" = all$sex,
                       "carcass" = all$carcass, "study_area" = all$study_area,
-                      "season" = all$season, "total.time" = all$total.time,
-                      "nobs" = all$nobs, "CORA" = all$CORA, all_scale)
+                      "season" = all$season,"nobs" = all$nobs, all_scale)
 #model
-test<-lmer(nobs ~ building_density + road_density + trail_density +
-             forest_density + elevation + season + (1|coug_id), 
-           data = all.mod)
-test<-lm(CORA ~ building_density + road_density + trail_density +
-             forest_density + elevation + season, 
-           data = all.mod, na.action = "na.fail")
-test<-lm(total.time ~ building_density + road_density + trail_distance +
-           forest_density + elevation + season, 
-         data = all.mod)
-summary(test)
-dredge(test)
+#zero-inflated: positive coeff = covariate increases probability of 0
+#of zero cougars (nobs)
+#higher building density increases chance of getting zero coug = less likely coug
+#higher road density decreases chance of getting zero coug = more likely coug
+#conditional: positive coeff = covariate increases probability of 1, removed 0
+#for sites that had a cougar, both road and bulding density decreases chance of getting coug
+#building_density has bigger effect
+(m <- glmmTMB(nobs~road_density + building_density + forest_density + I(forest_density^2) + (1|cam) + (1|carcass), 
+               zi=~road_density + building_density + forest_density+ I(forest_density^2), 
+               family=list(family="truncated_poisson", link="log"), all.mod))
+(m1 <- glmmTMB(nobs~road_density + (1|cam) + (1|carcass), 
+              zi=~building_density, 
+              family=list(family="truncated_poisson", link="log"), all.mod))
 
-all<-all%>%
-  filter(Folder=="Reconyx")
 #histograms of predictors
 p1<-ggplot(all, aes(x=building_density))+
   geom_histogram()
