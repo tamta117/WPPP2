@@ -5,6 +5,7 @@ library(tidyverse)
 library(RODBC)
 library(readxl)
 library(dplyr)
+library(lubridate)
 
 #format data to resemble each other
 oc<-read_excel(here("data/CameraTraps_AllDeadDeer.xlsx"))%>%
@@ -105,3 +106,72 @@ all<-all_revised%>%
   select(-id, -del2)
 all[is.na(all)]<-0
 write.csv(all, "data/all.csv")
+
+#add carcass data
+weight<-read_excel("data/Taylor_carcass.xlsx")%>%
+  select(species, sex, date_capt, year_capt, age_capt, 
+         collar_type, weight_wcollar_kg, mort_date)%>%
+  drop_na()
+mortality<-weight%>%
+  mutate(collar_weight=case_when(
+    collar_type=="ATS-VHF"~0.072,
+    collar_type=="Vectronic-GPS"~0.3,
+    collar_type=="Vectronic-Survey"~0.063),
+    final_weight= weight_wcollar_kg - collar_weight)%>%
+  group_by(species, year_capt)%>%
+  summarise(mean_capt=mean(date_capt),
+            mean_mort=mean(mort_date),
+            mean_wt=mean(final_weight))
+mortality$mean_capt<-format(as.POSIXct(mortality$mean_capt,format='%Y-%m-%d %H:%M:%S'),format='%Y-%m-%d')
+mortality$mean_mort<-format(as.POSIXct(mortality$mean_mort,format='%Y-%m-%d %H:%M:%S'),format='%Y-%m-%d')
+mortality<-mortality%>%
+  mutate(time2death=as.numeric(difftime(mean_mort,mean_capt,
+                                        units=c("days"))))
+elk<-mortality%>%
+  subset(species=="elk")%>%
+  mutate(add_wt=time2death*0.8,
+         dead_wt=add_wt+mean_wt,
+         dead_wt=ifelse(dead_wt>96, 96, dead_wt))%>%
+  summarise(final_wt=mean(dead_wt))
+wtd<-mortality%>%
+  subset(species=="wtd")%>%
+  mutate(add_wt=time2death*0.16,
+         dead_wt=add_wt+mean_wt)%>%
+  summarise(final_wt=mean(dead_wt))
+all<-read.csv("data/all_updated.csv")%>%
+  mutate(prey_wt=case_when(
+    carcass=="DeerUnkSpp_Fawn"~20,
+    carcass=="Elk_Calf"~60,
+    carcass=="MD_Adult"~70,
+    carcass=="MD_AgeUnk"~70,
+    carcass=="MD_Fawn"~20,
+    carcass=="MD_Yearling"~70,
+    carcass=="Moose_AgeUnk"~150,
+    carcass=="Moose_Calf"~60,
+    carcass=="Moose_Yearling"~150,
+    carcass=="Other"~70,
+    carcass=="WTD_Adult"~53,
+    carcass=="WTD_Fawn"~20))
+carcass_summer<-read_excel("data/WolfCougarClusters.xlsx")%>%
+  filter(CameraPlacement!="CPU")%>%
+  select(Cluster_ID, PercentCarcassConsumed)%>%
+  filter(!is.na(PercentCarcassConsumed))
+carcass_summer$cam<-gsub("-CSU", "",as.character(carcass_summer$Cluster_ID))
+carcass_winter<-read_excel("data/Winter2020.xlsx")%>%
+  filter(CameraPlacement!="CPU")%>%
+  select(Cluster_ID, PercentCarcassConsumed)%>%
+  filter(!is.na(PercentCarcassConsumed))
+carcass_winter$cam<-gsub("-CSU", "",as.character(carcass_winter$Cluster_ID))
+carcass<-bind_rows(carcass_summer, carcass_winter)
+all_join<-left_join(all, carcass, by="cam")%>%
+  select(-Cluster_ID)
+all_join[is.na(all_join)]<-0
+all_join<-all_join%>%
+  mutate(percent=PercentCarcassConsumed/100,
+         percent_remain=1-percent,
+         wt_remain=percent_remain*prey_wt)%>%
+  select(-PercentCarcassConsumed, -percent, -percent_remain)
+write.csv(all_join, "data/all_updated2.csv")
+
+#cluster data
+cluster<-read.csv("data/Carcass_AllClusters.csv")
