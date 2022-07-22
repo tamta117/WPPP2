@@ -6,37 +6,77 @@ library(tidyverse)
 library(ggplot2)
 library(patchwork)
 library(glmmTMB)
+library(AICcmodavg)
+library(MuMIn)
 
 #load data
-all<-read.csv("data/all_updated.csv")
+all<-read.csv("data/all_updated2.csv")
 
 #scale
-all_scale <- scale(all[11:18])
-all.mod <- data.frame("cam" = all$cam, "coug_id" = all$coug_id, "sex" = all$sex,
-                      "carcass" = all$carcass, "study_area" = all$study_area,
-                      "season" = all$season,"nobs" = all$nobs, all_scale)
+all_scale <- scale(all[12:19])
+all.mod <- data.frame("cam" = all$cam,"wt_remain" = all$wt_remain, "nobs" = all$nobs, all_scale)
+
 #model
-#zero-inflated: positive coeff = covariate increases probability of 0
-#of zero cougars (nobs)
-#higher building density increases chance of getting zero coug = less likely coug
-#higher road density decreases chance of getting zero coug = more likely coug
-#conditional: positive coeff = covariate increases probability of 1, removed 0
-#for sites that had a cougar, both road and bulding density decreases chance of getting coug
-#building_density has bigger effect
-(m <- glmmTMB(nobs~road_density + building_density + forest_density + I(forest_density^2) + (1|cam) + (1|carcass), 
-               zi=~road_density + building_density + forest_density+ I(forest_density^2), 
-               family=list(family="truncated_poisson", link="log"), all.mod))
-summary(m)
-(m1 <- glmmTMB(nobs~(1|carcass), 
-              zi=~1, 
-              family=list(family="truncated_poisson", link="log"), all.mod))
-(null<-glmmTMB(nobs~building_density+(1|cam), 
-            zi=~1, 
-            family=list(family="truncated_poisson", link="log"), all.mod))
-(m1 <- glmmTMB(nobs~forest_density, 
+(null <- glmmTMB(nobs~1, 
                zi=~1, 
                family=list(family="truncated_poisson", link="log"), all.mod))
-summary(m1)
+(m1 <- glmmTMB(nobs~building_density, 
+               zi=~1, 
+               family=list(family="truncated_poisson", link="log"), all.mod))
+(m2 <- glmmTMB(nobs~building_distance, 
+               zi=~1, 
+               family=list(family="truncated_poisson", link="log"), all.mod))
+(m3 <- glmmTMB(nobs~road_density, 
+               zi=~1, 
+               family=list(family="truncated_poisson", link="log"), all.mod))
+(m4 <- glmmTMB(nobs~log(road_distance+1), 
+               zi=~1, 
+               family=list(family="truncated_poisson", link="log"), all.mod))
+(m5 <- glmmTMB(nobs~trail_density, 
+               zi=~1, 
+               family=list(family="truncated_poisson", link="log"), all.mod))
+(m6 <- glmmTMB(nobs~trail_distance, 
+               zi=~1, 
+               family=list(family="truncated_poisson", link="log"), all.mod))
+(m7 <- glmmTMB(nobs~trail_distance+road_density+building_distance, 
+               zi=~1, 
+               family=list(family="truncated_poisson", link="log"), all.mod))
+(m8 <- glmmTMB(nobs~trail_distance+road_density+building_distance+forest_density, 
+               zi=~1, 
+               family=list(family="truncated_poisson", link="log"), all.mod))
+(m9 <- glmmTMB(nobs~trail_distance+road_density*road_distance+building_distance+forest_density, 
+               zi=~1, 
+               family=list(family="truncated_poisson", link="log"), all.mod))
+(m10 <- glmmTMB(nobs~trail_distance+road_density+building_distance+forest_density+road_distance, 
+               zi=~1, 
+               family=list(family="truncated_poisson", link="log"), all.mod))
+(m11 <- glmmTMB(nobs~trail_distance+road_density+building_distance+forest_density+road_distance+building_density, 
+                zi=~1, 
+                family=list(family="truncated_poisson", link="log"), all.mod))
+(m12 <- glmmTMB(nobs~trail_distance+trail_density+road_density+building_distance+forest_density+road_distance, 
+                zi=~1, 
+                family=list(family="truncated_poisson", link="log"), all.mod))
+(m13 <- glmmTMB(nobs~trail_distance*trail_density+road_density*road_distance+building_distance*building_density+forest_density, 
+               zi=~1, 
+               family=list(family="truncated_poisson", link="log"), all.mod))
+(m14 <- glmmTMB(nobs~trail_distance+trail_density+road_density+road_distance+building_distance+building_density+forest_density, 
+                zi=~1, 
+                family=list(family="truncated_poisson", link="log"), all.mod))
+summary(m10)
+
+#AIC testing
+#use dredge on overall model
+dredge(test, fixed = zi((Int)))
+
+#AIC table
+#the models you're comparing
+model.set <- list(null, m1, m2, m3, m4, m5, m6, m7, m8, m9, m10, m11, m12, m13, m14)
+model.names<-list(c("null", "m1", "m2", "m3", "m4", "m5", "m6", "m7", "m8", "m9", "m10", "m11", "m12", "m13", "m14"))
+
+#makes the table
+aic <- aictab(model.set, modnames=model.names)
+aic
+
 #histograms of predictors
 p1<-ggplot(all, aes(x=log(building_distance+1)))+
   geom_histogram()
