@@ -71,14 +71,14 @@ all_revised<-left_join(all_coug, cam_distance, by="cam")%>%
 write.csv(all_revised, "data/cam_revised.csv")
 
 #bind road density data
-all_revised<-read.csv("data/cam_revised.csv")
-road_den<-read_excel("data/GIS/road_density.xlsx")%>%
-  dplyr::select(cam, SHAPE_Length)%>%
-  group_by(cam)%>%
-  summarize(road_length=sum(SHAPE_Length))%>%
-  mutate(road_density=road_length/3281)%>%
-  select(-road_length)
-all_revised<-left_join(all_revised, road_den, by="cam")
+# all_revised<-read.csv("data/GIS/cam_revised.csv")
+# road_den<-read_excel("data/GIS/road_density.xlsx")%>%
+#   dplyr::select(cam, SHAPE_Length)%>%
+#   group_by(cam)%>%
+#   summarize(road_length=sum(SHAPE_Length))%>%
+#   mutate(road_density=road_length/3281)%>%
+#   select(-road_length)
+# all_revised<-left_join(all_revised, road_den, by="cam")
 
 #bind forest cover data
 forest_den<-read_excel("data/GIS/forest_cover.xlsx")%>%
@@ -173,5 +173,57 @@ all_join<-all_join%>%
   select(-PercentCarcassConsumed, -percent, -percent_remain)
 write.csv(all_join, "data/all_updated2.csv")
 
+#re-add road and trail density
+all<-read.csv("data/all_updated2.csv")%>%
+  select(-road_density, -trail_density)
+road_den<-read_excel("data/GIS/cam_road_density.xlsx")%>%
+  dplyr::select(cam, Shape_Length)%>%
+  group_by(cam)%>%
+  summarize(road_length=sum(Shape_Length))%>%
+  mutate(road_density=road_length*0.0003048)%>%
+  select(-road_length)
+all<-left_join(all, road_den, by="cam")
+trail_den<-read_excel("data/GIS/cam_trail_density.xlsx")%>%
+  dplyr::select(cam, Shape_Length)%>%
+  group_by(cam)%>%
+  summarize(trail_length=sum(Shape_Length))%>%
+  mutate(trail_density=trail_length*0.0003048)%>%
+  select(-trail_length)
+all<-left_join(all, trail_den, by="cam")
+all[is.na(all)]<-0
+write.csv(all, "data/all_updated3.csv")
+
 #cluster data
-cluster<-read.csv("data/Carcass_AllClusters.csv")
+cluster<-read.csv("data/Carcass_AllClusters.csv")%>%
+  filter(CarcassFound==1)%>%
+  mutate(duration.hr=time.span..hours.,
+         lat=centroid.latitude,
+         long=centroid.longitude)%>%
+  select(Cluster, lat, long, duration.hr)
+write.csv(cluster, "data/cluster_total_time.csv")
+cluster_building_den<-read_excel("data/GIS/cluster_building_density.xlsx")%>%
+  group_by(Cluster)%>%
+  summarize(building_density=n())
+cluster_building_dis<-read_excel("data/GIS/cluster_building_distance.xlsx")%>%
+  mutate(building_distance=NEAR_DIST/1000)%>%
+  select(Cluster, building_distance)
+cluster_road_den<-read_excel("data/GIS/cluster_road_density.xlsx")%>%
+  group_by(Cluster)%>%
+  summarize(road_density=n())
+cluster_road_dis<-read_excel("data/GIS/cluster_road_distance.xlsx")%>%
+  mutate(road_distance=NEAR_DIST/1000)%>%
+  select(Cluster, road_distance)
+cluster_trail_den<-read_excel("data/GIS/cluster_trail_density.xlsx")%>%
+  group_by(Cluster)%>%
+  summarize(trail_density=n())
+cluster_trail_dis<-read_excel("data/GIS/cluster_trail_distance.xlsx")%>%
+  mutate(trail_distance=NEAR_DIST/1000)%>%
+  select(Cluster, trail_distance)
+cluster_building<-merge(cluster_building_den, cluster_building_dis, all=TRUE)
+cluster_trail<-merge(cluster_trail_den, cluster_trail_dis, all=TRUE)
+cluster_road<-merge(cluster_road_den, cluster_road_dis, all=TRUE)
+cluster_gis<-bind_cols(cluster_building, cluster_trail, cluster_road)%>%
+  mutate(cam=Cluster...1)%>%
+  select(cam, building_density, building_distance, road_density, road_distance, trail_density, trail_distance)
+cluster_gis[is.na(cluster_gis)]<-0
+write.csv(cluster_gis, "data/cluster.csv")

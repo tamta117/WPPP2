@@ -10,10 +10,13 @@ library(AICcmodavg)
 library(MuMIn)
 
 #load data
-all<-read.csv("data/all_updated2.csv")
+all<-read.csv("data/all_updated3.csv")%>%
+  select(cam, wt_remain, nobs, building_density, building_distance,
+         road_density, road_distance, trail_density, trail_distance, 
+         forest_density)
 
 #scale
-all_scale <- scale(all[12:19])
+all_scale <- scale(all[4:10])
 all.mod <- data.frame("cam" = all$cam,"wt_remain" = all$wt_remain, "nobs" = all$nobs, all_scale)
 
 #model
