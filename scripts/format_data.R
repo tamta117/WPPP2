@@ -223,7 +223,13 @@ cluster_building<-merge(cluster_building_den, cluster_building_dis, all=TRUE)
 cluster_trail<-merge(cluster_trail_den, cluster_trail_dis, all=TRUE)
 cluster_road<-merge(cluster_road_den, cluster_road_dis, all=TRUE)
 cluster_gis<-bind_cols(cluster_building, cluster_trail, cluster_road)%>%
-  mutate(cam=Cluster...1)%>%
-  select(cam, building_density, building_distance, road_density, road_distance, trail_density, trail_distance)
+  mutate(Cluster=Cluster...1)%>%
+  select(Cluster, building_density, building_distance, road_density, road_distance, trail_density, trail_distance)
 cluster_gis[is.na(cluster_gis)]<-0
-write.csv(cluster_gis, "data/cluster.csv")
+cluster_merge<-left_join(cluster, cluster_gis, by="Cluster")%>%
+  select(-lat, -long)
+cluster_forest<-read_excel("data/GIS/cluster_forest_density.xlsx")%>%
+  mutate(forest_density=RASTERVALU)%>%
+  select(Cluster, forest_density)
+cluster.f<-left_join(cluster_merge, cluster_forest, by="Cluster")
+write.csv(cluster.f, "data/cluster.csv")
