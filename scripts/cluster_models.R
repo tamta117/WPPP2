@@ -1,13 +1,22 @@
-cluster<-read.csv("data/cluster.csv")
-cluster_scale<-scale(cluster[4:10])
-cluster.mod<-data.frame("cam"=cluster$Cluster, "total.hr"=cluster$duration.hr, cluster_scale)
+library(lme4)
 
-null<-lm(total.hr~1, cluster.mod)
-c1<-lm(total.hr~building_density, cluster.mod)
-c2<-lm(total.hr~trail_density, cluster.mod)
-c3<-lm(total.hr~road_density, cluster.mod)
-c4<-lm(total.hr~forest_density, cluster.mod)
-c5<-lm(total.hr~building_density+building_distance+road_density+road_distance+trail_density+trail_distance+forest_density, cluster.mod,
-       na.action = "na.fail")
-summary(c5)
-dredge(c5)
+cluster<-read.csv("data/cluster.csv")%>%
+  filter(duration.hr<=263)%>%
+  distinct(Cluster,.keep_all = TRUE)
+cluster_scale<-scale(cluster[5:11])
+cluster.mod<-data.frame("cam"=cluster$Cluster, "total.hr"=cluster$duration.hr,
+                        "season"=cluster$season, cluster_scale)
+
+null<-glm(total.hr~1, cluster.mod, family=poisson(link = log))
+summary(null)
+
+c2<-glm(total.hr~building_density+road_density+trail_density+forest_density+season, data=cluster.mod,
+       na.action = "na.fail", family = poisson(link = log))
+c3<-glm(total.hr~building_density+trail_density+forest_density+season, cluster.mod, 
+        family=poisson(link = log))
+summary(c2)
+sadcluster<-dredge(c2)
+
+hist(cluster.mod$total.hr)
+qqnorm(resid(c5))
+qqline(resid(c5))
