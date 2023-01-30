@@ -44,6 +44,7 @@ nocoug.merge<-bind_rows(nocoug)%>%
 
 #find sites with zero cougars
 true.nocoug<-anti_join(nocoug.merge, time.bin, by="cam")
+nocoug<-select(true.nocoug, cam)
 
 #bind all sites and write csv
 processed<-bind_rows(true.nocoug, time.bin)

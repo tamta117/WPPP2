@@ -29,13 +29,19 @@ cam_nobs<-cam_date%>%
          BEAR = +(if_any(c("Species1", "Species2", "Species3"), ~ . %in% 'Black Bear')),
          BOBC = +(if_any(c("Species1", "Species2", "Species3"), ~ . %in% 'Bobcat')),
          COYO = +(if_any(c("Species1", "Species2", "Species3"), ~ . %in% 'Coyote')),
-         WOLF = +(if_any(c("Species1", "Species2", "Species3"), ~ . %in% 'Wolf')))%>%
-  subset(date_time2 <= end.date)%>% #filter for one month from state date
+         WOLF = +(if_any(c("Species1", "Species2", "Species3"), ~ . %in% 'Wolf')),
+         COUG = ifelse(Species1 == "Cougar" & Collar == "true", 1, 0))%>%
+  subset(date_time2 <= end.date) #filter for one month from start date
+cam_coug<-cam_nobs%>%
+  filter(COUG==1)
+last_coug = tail(cam_coug, n =1)
+cam_fin<-cam_nobs%>%
+  filter(date_time2<=last_coug[1,38])%>%
   select(cam, Folder, time.bin, MAGP, EAGL, RAVE, VULT, COWS, BEAR, BOBC, COYO, WOLF)
 }
 
 #test function
-test<-sca_bin("data/cam/MVC202F-2588-Moultrie_Checked.csv")
+test<-sca_bin("data/cam/MVC237M-060-16-10C-Reconyx_Checked.csv")
 
 #run nobs function for scavengers
 #create list of all processed csv file names
@@ -63,3 +69,13 @@ all_sca = all_sca[-36,]
 
 #write data
 write.csv(all_sca, "data/all_sca_1226.csv")
+
+#find cameras where there was a cougar
+sca_yescoug<-anti_join(sca_nobs, nocoug, by="cam")
+sca_nocoug<-semi_join(all_sca, nocoug, by="cam")%>%
+  select(cam, 19:27)
+sca_bind<-bind_rows(sca_yescoug, sca_nocoug)
+all_sca_fin<-left_join(all, sca_bind, by="cam")%>%
+  mutate(COUG=nobs)%>%
+  select(-nobs)
+write.csv(all_sca_fin, "data/all_sca_0106.csv")
